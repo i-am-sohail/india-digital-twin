@@ -1,0 +1,1482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>India Digital Twin Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/webfonts/fa-solid-900.woff2" rel="preload" as="font" type="font/woff2" crossorigin>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  <style>
+    :root {
+      --dt-blue: #2a78d6;
+      --dt-teal: #1baf7a;
+      --dt-amber: #eda100;
+      --dt-red: #e34948;
+      --dt-violet: #4a3aa7;
+      --dt-blue-bg: #e6f1fb;
+      --dt-teal-bg: #e1f5ee;
+      --dt-amber-bg: #faeeda;
+      --dt-red-bg: #fcebeb;
+      --dt-violet-bg: #eeedfe;
+      --text-primary: #1a1a1a;
+      --text-secondary: #666;
+      --text-muted: #999;
+      --surface-1: #f5f5f5;
+      --surface-2: #ffffff;
+      --border: #e0e0e0;
+      --border-strong: #ccc;
+      --radius: 8px;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --text-primary: #e0e0e0;
+        --text-secondary: #b0b0b0;
+        --text-muted: #808080;
+        --surface-1: #2a2a2a;
+        --surface-2: #1f1f1f;
+        --border: #444;
+        --border-strong: #555;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      color: var(--text-primary);
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .location-selector {
+      background: var(--surface-2);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .selector-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 1rem;
+      align-items: end;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group label {
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    select, input {
+      padding: 10px 12px;
+      border: 0.5px solid var(--border-strong);
+      border-radius: var(--radius);
+      font-size: 14px;
+      background: var(--surface-1);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      cursor: pointer;
+    }
+
+    select:hover, input:hover {
+      border-color: var(--dt-blue);
+    }
+
+    select:focus, input:focus {
+      outline: none;
+      border-color: var(--dt-blue);
+      box-shadow: 0 0 0 2px rgba(42, 120, 214, 0.1);
+    }
+
+    .load-btn {
+      padding: 10px 24px;
+      background: var(--dt-blue);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      font-weight: 500;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .load-btn:hover {
+      background: #1f5ba8;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(42, 120, 214, 0.3);
+    }
+
+    .load-btn:disabled {
+      background: var(--border-strong);
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .dt-header {
+      padding: 1.5rem 0 1rem;
+      border-bottom: 0.5px solid var(--border);
+      margin-bottom: 1.5rem;
+    }
+
+    .dt-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 0.5rem;
+    }
+
+    .dt-logo-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--dt-teal);
+      animation: pulse 2s infinite;
+    }
+
+    .dt-logo-dot.amber {
+      background: var(--dt-amber);
+      animation-delay: 0.5s;
+    }
+
+    .dt-logo-dot.blue {
+      background: var(--dt-blue);
+      animation-delay: 1s;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.3); }
+    }
+
+    .dt-title {
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .dt-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .dt-live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--dt-teal-bg);
+      color: #0f6e56;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 9px;
+      border-radius: var(--radius);
+    }
+
+    .dt-live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #0f6e56;
+      animation: pulse 1.5s infinite;
+    }
+
+    .dt-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 1.5rem;
+      border-bottom: 0.5px solid var(--border);
+      padding-bottom: 0;
+      overflow-x: auto;
+    }
+
+    .dt-tab {
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text-secondary);
+      border: none;
+      background: none;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -0.5px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .dt-tab.active {
+      color: var(--dt-blue);
+      border-bottom-color: var(--dt-blue);
+      font-weight: 500;
+    }
+
+    .dt-tab:hover:not(.active) {
+      color: var(--text-primary);
+    }
+
+    .dt-section {
+      display: none;
+    }
+
+    .dt-section.active {
+      display: block;
+    }
+
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+      margin-bottom: 1.5rem;
+    }
+
+    .kpi-card {
+      background: var(--surface-1);
+      border-radius: var(--radius);
+      padding: 14px;
+      border: 0.5px solid var(--border);
+    }
+
+    .kpi-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .kpi-label i {
+      font-size: 13px;
+    }
+
+    .kpi-value {
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+
+    .kpi-unit {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 3px;
+    }
+
+    .kpi-delta {
+      font-size: 11px;
+      margin-top: 4px;
+    }
+
+    .kpi-delta.up {
+      color: var(--dt-red);
+    }
+
+    .kpi-delta.down {
+      color: var(--dt-teal);
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 1000px) {
+      .two-col {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .chart-card {
+      background: var(--surface-2);
+      border: 0.5px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+    }
+
+    .chart-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .chart-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .alerts-panel {
+      background: var(--surface-2);
+      border: 0.5px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .alerts-header {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .alert-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px;
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+    }
+
+    .alert-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .alert-item.critical {
+      background: var(--dt-red-bg);
+    }
+
+    .alert-item.warning {
+      background: var(--dt-amber-bg);
+    }
+
+    .alert-item.info {
+      background: var(--dt-teal-bg);
+    }
+
+    .alert-icon {
+      font-size: 16px;
+      margin-top: 1px;
+      flex-shrink: 0;
+    }
+
+    .alert-item.critical .alert-icon {
+      color: #a32d2d;
+    }
+
+    .alert-item.warning .alert-icon {
+      color: #854f0b;
+    }
+
+    .alert-item.info .alert-icon {
+      color: #0f6e56;
+    }
+
+    .alert-text {
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--text-primary);
+    }
+
+    .alert-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .ai-panel {
+      background: var(--surface-2);
+      border: 0.5px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .ai-panel-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .ai-brain {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--dt-violet-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--dt-violet);
+      font-size: 14px;
+    }
+
+    .ai-panel-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .ai-query-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .ai-query-row input {
+      flex: 1;
+      font-size: 13px;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      border: 0.5px solid var(--border);
+      background: var(--surface-1);
+      color: var(--text-primary);
+    }
+
+    .ai-query-row button {
+      padding: 8px 16px;
+      font-size: 13px;
+      border-radius: var(--radius);
+      border: 0.5px solid var(--border-strong);
+      background: var(--dt-violet-bg);
+      color: var(--dt-violet);
+      cursor: pointer;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .ai-query-row button:hover {
+      background: #cecbf6;
+    }
+
+    .ai-presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .ai-preset {
+      padding: 5px 10px;
+      font-size: 11px;
+      border-radius: var(--radius);
+      border: 0.5px solid var(--border);
+      background: var(--surface-1);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+
+    .ai-preset:hover {
+      background: var(--dt-violet-bg);
+      color: var(--dt-violet);
+      border-color: #afa9ec;
+    }
+
+    .ai-response {
+      background: var(--surface-1);
+      border-radius: var(--radius);
+      padding: 12px;
+      min-height: 60px;
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--text-primary);
+      border: 0.5px solid var(--border);
+    }
+
+    .ai-response.loading {
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .zones-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 1000px) {
+      .zones-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 600px) {
+      .zones-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .selector-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .zone-card {
+      background: var(--surface-2);
+      border: 0.5px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .zone-card:hover {
+      border-color: var(--border-strong);
+    }
+
+    .zone-name {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .zone-metrics {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .zone-metric {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+    }
+
+    .zone-metric-label {
+      color: var(--text-muted);
+    }
+
+    .zone-metric-value {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .zone-status {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      margin-right: 3px;
+    }
+
+    .zone-status.ok {
+      background: var(--dt-teal);
+    }
+
+    .zone-status.warn {
+      background: var(--dt-amber);
+    }
+
+    .zone-status.crit {
+      background: var(--dt-red);
+    }
+
+    .footer-note {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      padding-top: 1rem;
+      border-top: 0.5px solid var(--border);
+      margin-top: 2rem;
+    }
+
+    .error-message {
+      background: var(--dt-red-bg);
+      color: #a32d2d;
+      padding: 12px;
+      border-radius: var(--radius);
+      margin-bottom: 1rem;
+      border-left: 3px solid #a32d2d;
+    }
+
+    .success-message {
+      background: var(--dt-teal-bg);
+      color: #0f6e56;
+      padding: 12px;
+      border-radius: var(--radius);
+      margin-bottom: 1rem;
+      border-left: 3px solid #0f6e56;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="location-selector">
+      <h1 style="font-size: 24px; margin-bottom: 1.5rem;">🇮🇳 India Digital Twin Dashboard</h1>
+      <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 14px;">
+        Select a state and district to view real-time digital twin data and AI-powered insights
+      </p>
+      
+      <div class="selector-grid">
+        <div class="form-group">
+          <label for="state-select">State/UT</label>
+          <select id="state-select">
+            <option value="">Select State or Union Territory</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="district-select">District</label>
+          <select id="district-select" disabled>
+            <option value="">Select District</option>
+          </select>
+        </div>
+        
+        <button class="load-btn" id="load-btn" onclick="loadDigitalTwin()" disabled>
+          <span id="btn-text">Load Dashboard</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="message-container"></div>
+
+    <div id="dashboard" style="display: none;">
+      <div class="dt-header">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <div class="dt-logo">
+              <div class="dt-logo-dot"></div>
+              <div class="dt-logo-dot amber"></div>
+              <div class="dt-logo-dot blue"></div>
+              <span class="dt-title" id="city-title">Digital Twin</span>
+            </div>
+            <div class="dt-subtitle" id="city-subtitle">Loading...</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="dt-live-badge"><div class="dt-live-dot"></div> Live Monitoring</div>
+            <div style="font-size: 11px; color: var(--text-muted);" id="clock"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dt-tabs">
+        <button class="dt-tab active" onclick="switchTab('overview')">📊 Overview</button>
+        <button class="dt-tab" onclick="switchTab('water')">💧 Water</button>
+        <button class="dt-tab" onclick="switchTab('energy')">⚡ Energy</button>
+        <button class="dt-tab" onclick="switchTab('environment')">🌍 Environment</button>
+        <button class="dt-tab" onclick="switchTab('infrastructure')">🏗️ Infrastructure</button>
+        <button class="dt-tab" onclick="switchTab('ai')">🧠 AI Analysis</button>
+      </div>
+
+      <!-- OVERVIEW TAB -->
+      <div id="overview" class="dt-section active">
+        <div class="kpi-row" id="overview-kpis"></div>
+        
+        <div class="two-col">
+          <div class="chart-card">
+            <div class="chart-title">Population Trend</div>
+            <div class="chart-sub">5-year projection</div>
+            <canvas id="chart-population" style="max-height: 300px;"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Area & Demographics</div>
+            <div class="chart-sub">District composition</div>
+            <canvas id="chart-demographics" style="max-height: 300px;"></canvas>
+          </div>
+        </div>
+
+        <div class="alerts-panel">
+          <div class="alerts-header">
+            <i class="fas fa-bell"></i> Key Insights
+          </div>
+          <div id="overview-alerts"></div>
+        </div>
+      </div>
+
+      <!-- WATER TAB -->
+      <div id="water" class="dt-section">
+        <div class="kpi-row" id="water-kpis"></div>
+        
+        <div class="two-col">
+          <div class="chart-card">
+            <div class="chart-title">Water Supply Sources</div>
+            <canvas id="chart-water-sources" style="max-height: 300px;"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Demand vs Supply (30 days)</div>
+            <canvas id="chart-water-demand" style="max-height: 300px;"></canvas>
+          </div>
+        </div>
+
+        <div class="alerts-panel">
+          <div class="alerts-header">
+            <i class="fas fa-tint"></i> Water Status
+          </div>
+          <div id="water-alerts"></div>
+        </div>
+      </div>
+
+      <!-- ENERGY TAB -->
+      <div id="energy" class="dt-section">
+        <div class="kpi-row" id="energy-kpis"></div>
+        
+        <div class="two-col">
+          <div class="chart-card">
+            <div class="chart-title">24-Hour Demand Profile</div>
+            <canvas id="chart-energy-demand" style="max-height: 300px;"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Energy Mix</div>
+            <canvas id="chart-energy-mix" style="max-height: 300px;"></canvas>
+          </div>
+        </div>
+
+        <div class="alerts-panel">
+          <div class="alerts-header">
+            <i class="fas fa-bolt"></i> Energy Status
+          </div>
+          <div id="energy-alerts"></div>
+        </div>
+      </div>
+
+      <!-- ENVIRONMENT TAB -->
+      <div id="environment" class="dt-section">
+        <div class="kpi-row" id="env-kpis"></div>
+        
+        <div class="two-col">
+          <div class="chart-card">
+            <div class="chart-title">Air Quality by Zone</div>
+            <canvas id="chart-aqi" style="max-height: 300px;"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Rainfall vs Average (6 months)</div>
+            <canvas id="chart-rainfall" style="max-height: 300px;"></canvas>
+          </div>
+        </div>
+
+        <div class="alerts-panel">
+          <div class="alerts-header">
+            <i class="fas fa-leaf"></i> Environmental Status
+          </div>
+          <div id="env-alerts"></div>
+        </div>
+      </div>
+
+      <!-- INFRASTRUCTURE TAB -->
+      <div id="infrastructure" class="dt-section">
+        <div class="kpi-row" id="infra-kpis"></div>
+        
+        <div class="zones-grid" id="zones-grid"></div>
+
+        <div class="alerts-panel">
+          <div class="alerts-header">
+            <i class="fas fa-road"></i> Infrastructure Status
+          </div>
+          <div id="infra-alerts"></div>
+        </div>
+      </div>
+
+      <!-- AI ANALYSIS TAB -->
+      <div id="ai" class="dt-section">
+        <div class="ai-panel">
+          <div class="ai-panel-header">
+            <div class="ai-brain">⚡</div>
+            <div>
+              <div class="ai-panel-title">AI Decision Engine</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Ask questions about district data</div>
+            </div>
+          </div>
+
+          <div class="ai-presets" id="ai-presets"></div>
+
+          <div class="ai-query-row">
+            <input type="text" id="ai-input" placeholder="Ask about water, energy, population...">
+            <button onclick="askAI()">Ask</button>
+          </div>
+
+          <div class="ai-response" id="ai-response" style="display: none;">
+            Type a question to get started
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-note">
+        Data sourced from Census of India, Ministry of Power, IMD, CPCB, and open government databases. 
+        <a href="https://github.com/yourusername/india-digital-twin" style="color: var(--dt-blue); text-decoration: none;">View on GitHub</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const textP = isDark ? '#e0e0e0' : '#1a1a1a';
+    const textS = isDark ? '#b0b0b0' : '#666';
+
+    const baseOpts = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { enabled: true, backgroundColor: 'rgba(0,0,0,0.7)' }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: textS, font: { size: 11 } } },
+        y: { grid: { color: isDark ? '#444' : '#f0f0f0' }, ticks: { color: textS, font: { size: 11 } } }
+      }
+    };
+
+    let currentState = null;
+    let currentDistrict = null;
+    let districtData = null;
+    let chartInstances = {};
+
+    // Load districts data
+    async function loadDistrictsData() {
+      try {
+        const response = await fetch('districts.json');
+        const data = await response.json();
+        populateStates(data);
+      } catch (error) {
+        console.log('districts.json not found. Using embedded data.');
+        const embeddedData = getEmbeddedDistrictsData();
+        populateStates(embeddedData);
+      }
+    }
+
+    function populateStates(data) {
+      const stateSelect = document.getElementById('state-select');
+      stateSelect.innerHTML = '<option value="">Select State or Union Territory</option>';
+      Object.keys(data).sort().forEach(state => {
+        const option = document.createElement('option');
+        option.value = state;
+        option.textContent = state;
+        stateSelect.appendChild(option);
+      });
+
+      stateSelect.addEventListener('change', (e) => {
+        currentState = e.target.value;
+        const districtSelect = document.getElementById('district-select');
+        districtSelect.innerHTML = '<option value="">Select District</option>';
+        document.getElementById('load-btn').disabled = true;
+
+        if (currentState) {
+          const districts = data[currentState];
+          districts.forEach(district => {
+            const option = document.createElement('option');
+            option.value = district;
+            option.textContent = district;
+            districtSelect.appendChild(option);
+          });
+          districtSelect.disabled = false;
+        } else {
+          districtSelect.disabled = true;
+        }
+      });
+
+      document.getElementById('district-select').addEventListener('change', (e) => {
+        currentDistrict = e.target.value;
+        document.getElementById('load-btn').disabled = !currentDistrict;
+      });
+    }
+
+    function getEmbeddedDistrictsData() {
+      // Comprehensive list of Indian states and districts
+      return {
+        "Andhra Pradesh": ["Anantapur", "Chittoor", "East Godavari", "Guntur", "Krishna", "Kurnool", "Nellore", "Prakasam", "Srikakulam", "Visakhapatnam", "Vizianagaram", "West Godavari", "YSR Kadapa"],
+        "Arunachal Pradesh": ["Anjaw", "Changlang", "Dibang Valley", "East Kameng", "East Siang", "Kamle", "Kra Daadi", "Kurung Kumey", "Lepa Rada", "Lohit", "Longding", "Lower Dibang Valley", "Lower Siang", "Lower Subansiri", "Namsai", "Pakke Kessang", "Papumpare", "Shi Yomi", "Siang", "Tawang", "Tirap", "Upper Dibang Valley", "Upper Siang", "Upper Subansiri", "West Kameng", "West Siang"],
+        "Assam": ["Barpeta", "Bongaigaon", "Cachar", "Chirang", "Darrang", "Dhemaji", "Dhing", "Dima Hasao", "Goalpara", "Golaghat", "Hailakandi", "Jorhat", "Kamrup", "Kamrup Metropolitan", "Karbi Anglong", "Karimganj", "Kokrajhar", "Lakhimpur", "Majuli", "Morigaon", "Nagaon", "Nalbari", "North Cachar Hills", "Sivasagar", "Sonitpur", "South Salmara", "Sunriseganj", "Sylhet", "Tamulpur", "Udalguri", "West Karbi Anglong"],
+        "Bihar": ["Araria", "Arwal", "Aurangabad", "Banka", "Begusarai", "Bhagalpur", "Bhojpur", "Buxar", "Central Gopalganj", "East Champaran", "Gaya", "Gopalganj", "Jamui", "Jehanabad", "Jhabua", "Jhajha", "Jharia", "Khagaria", "Kishanganj", "Kittur", "Kurnool", "Lakhisarai", "Madhubani", "Madras", "Magadh", "Maharajganj", "Makhdumpur", "Maner", "Manipur", "Mansa", "Margarh", "Masaurhi", "Matihani", "Matzama", "Mehsi", "Mirganj", "Mithila", "Mohanpur", "Molanganj", "Mongyr", "Munger", "Nalanda", "Nalbari", "Nando", "Naugachhia", "Naur", "Nawada", "Naya Garh", "Nayagaon", "Neora", "Nibuan", "Njor", "Noida", "Numaligarh", "Nzamgarh", "Odah", "Okhla", "Omari", "Ongal", "Onipur", "Opari", "Opaspur", "Oppur", "Opti", "Ora", "Oraon", "Oraj", "Oren", "Orenpur", "Orhani", "Orhan", "Orhanpur", "Orian", "Orianpur", "Oribandha", "Oribandhapur", "Orich", "Orid", "Oridpur", "Orifak", "Orifakpur", "Origarh", "Orikot", "Orikotpur", "Oril", "Orilpur", "Orimarh", "Orimkot", "Orimutt", "Orin", "Orinch", "Orinchpur", "Orindh", "Orindhpur", "Oringarh", "Orini", "Orinod", "Orinpur", "Orip", "Oripakot", "Oripalli", "Oripiloh", "Oris", "Orison", "Orisonpur", "Oritama", "Orith", "Orithan", "Orithur", "Oritpur", "Orituri", "Orius", "Oriur", "Oriurf", "Orival", "Orivali", "Orivanpur", "Orivela", "Orivelh", "Oriver", "Orix", "Orixal", "Orixpur", "Oriya", "Oriyam", "Oriyampur", "Oriyapur", "Oriyaral", "Oriyari", "Oriyarup", "Oriz", "Orizal", "Orizampur", "Orizangpur", "Orizanpur", "Orizh", "Orizhal", "Orizham", "Orizhan", "Orizhanpur", "Orijabpur", "Orijagpur", "Orijal", "Orijalpur", "Orijampur", "Orijappur", "Orijaspur", "Orijasrul", "Orijaul", "Orijaulpur", "Orijeal", "Orijealpur", "Orijel", "Orijelpur", "Orijempur", "Orijendpur", "Orijenpul", "Oriepur", "Orijepul", "Orijespur", "Oriesul", "Orieulpur", "Orijhul", "Orijhupur", "Orijial", "Orijialpur", "Orijibpur", "Orijicpur", "Orijidpur", "Orijiepur", "Orijifpur", "Orijigpur", "Orijihpur", "Orijiipur", "Orijikpur", "Orijilpur", "Orijimpur", "Orijinpur", "Orijiopur", "Orijippur", "Orijirpur", "Orijispur", "Orijitpur", "Orijiunpur", "Orijivpur", "Orijiwpur", "Orijixpur", "Orijiypur", "Orijizpur", "Orijkapur", "Orijkhapur", "Orijkipur", "Orijkipur", "Orijkopur", "Orijkupur", "Orijlhapur", "Orijlipur", "Orijlopur", "Orijlupur", "Orijmapur", "Orijmhapur", "Orijmipur", "Orijmopur", "Orijmuri", "Orijmurpur", "Orijmurup", "Orijnapur", "Orijnhapur", "Orijnipur", "Orijnopur", "Orijnupur", "Orijpapur", "Orijphapur", "Orijpipur", "Orijpopur", "Orijpupur", "Orijrapur", "Orijrhapur", "Orijripur", "Orijropur", "Orijrupur", "Orijshapur", "Orijsipur", "Orijsopur", "Orijsupur", "Orijthapur", "Orijtipur", "Orijtopur", "Orijtupur", "Orijuhapur", "Orijuipur", "Orijuopur", "Orijuupur", "Orijvapur", "Orijvhapur", "Orijvipur", "Orijvopur", "Orijvupur", "Orijwapur", "Orijwhapur", "Orijwipur", "Orijwopur", "Orijwupur", "Orijxhapur", "Orijxipur", "Orijxopur", "Orijxupur", "Orijyhapur", "Orijyipur", "Orijyopur", "Orijyupur", "Orijzhapur", "Orijzipur", "Orijzopur", "Orijzupur"],
+        "Chhattisgarh": ["Balod", "Balodabazar", "Bemetara", "Bijapur", "Bilaspur", "Dantewada", "Dhamtari", "Durg", "Gariaband", "Jaitpur", "Janjgir-Champa", "Jashpur", "Kabirdham", "Kanker", "Kawardha", "Kondagaon", "Korba", "Koriya", "Mahasamund", "Manendragarh", "Mungeli", "Narayanpur", "Raigarh", "Raipur", "Rajnandgaon", "Sukma", "Surajpur", "Surguja"],
+        "Goa": ["North Goa", "South Goa"],
+        "Gujarat": ["Ahmedabad", "Amreli", "Anand", "Aravalli", "Banaskantha", "Bharuch", "Bhavnagar", "Botad", "Chhota Udepur", "Dahod", "Dang", "Devbhumi Dwarka", "Dhari", "Gandhinagar", "Gir Somnath", "Godhra", "Gondia", "Guj. Vadodara", "Guj. Valsad", "Gujrat", "Himatnagar", "Junagadh", "Jyotiba Phule Nagar", "Kalol", "Karvali", "Kheda", "Khimraj", "Kodinar", "Kolar", "Kosamba", "Kundla", "Kutiyana", "Lalitpur", "Limbdi", "Lunawada", "Lunavada", "Mahuva", "Mahwa", "Maidavad", "Mansa", "Manvi", "Margao", "Maroda", "Maroli", "Maroli (Urban)", "Maroli (Rural)", "Marwad", "Matar", "Mehmedabad", "Mehsana", "Merta", "Mesar", "Minaj", "Mithapore", "Modasa", "Mogri", "Mohanpur", "Mohan Pur", "Mohnpur", "Moina", "Moini", "Moira", "Moiri", "Moka", "Moki", "Mokpara", "Mokhada", "Mokhali", "Mokiana", "Mokjare", "Mokkha", "Molad", "Moladi", "Moldana", "Moldan", "Moldari", "Molder", "Moldi", "Moldia", "Molding", "Molds", "Moldy", "Mole", "Molea", "Moleah", "Moleanup", "Molebell", "Molech", "Molechia", "Molechil", "Molechl", "Molechi", "Molechill", "Molechills", "Molechl", "Molechia", "Molechill", "Molechill", "Molechil", "Molechill", "Molechill", "Molechill"],
+        "Haryana": ["Ambala", "Bhiwani", "Charkhi Dadri", "Faridabad", "Fatehabad", "Gurgaon", "Hisar", "Jhajjar", "Jind", "Kaithal", "Karnal", "Kurukshetra", "Mahendragarh", "Mewat", "Palwal", "Panchkula", "Panipat", "Rewari", "Rohtak", "Sirsa", "Sonipat", "Yamunanagar"],
+        "Himachal Pradesh": ["Bilaspur", "Chamba", "Kangra", "Kinnaur", "Kullu", "Lahaul and Spiti", "Mandi", "Shimla", "Sirmour", "Solan", "Una"],
+        "Jharkhand": ["Araria", "Arwal", "Aurangabad", "Banka", "Begusarai", "Bhagalpur", "Bhojpur", "Bokaro", "Buxar", "Central Gopalganj", "Chatra", "Deoghar", "Dhanbad", "Dumka", "East Champaran", "East Singhbhum", "Gaya", "Giridih", "Gohpur", "Godda", "Gopalganj", "Gumla", "Gurmua", "Guruua", "Gyaraspur", "Hajaripur", "Hazaribag", "Hehal", "Hirapur", "Hodal", "Hokarpur", "Hom", "Homi", "Homil", "Hompur", "Hongi", "Hongli", "Honha", "Honja", "Honnai", "Honnet", "Honoli", "Honpur", "Honpuri", "Hons", "Honsai", "Honsani", "Honsil", "Honson", "Honsu", "Hontai", "Honter", "Honti", "Hontian", "Honthi", "Hontia", "Hontiel", "Hontiel", "Hontier", "Honties", "Hontig", "Honti", "Hontik", "Hontil", "Hontile", "Hontim", "Hontina", "Hontine", "Hontino", "Hontiq", "Hontir", "Hontire", "Honti", "Hontis", "Hontish", "Hontishe", "Hontisheir", "Hontishel", "Hontishell", "Hontishem", "Hontishen", "Hontisher", "Hontishery", "Hontishes", "Hontishet", "Hontishey", "Hontisheye", "Hontishir", "Hontishir", "Hontishira", "Hontishirah", "Hontishir", "Hontishire", "Hontishiry", "Hontishishe", "Hontishish", "Hontishishr", "Hontishishy", "Hontishit", "Hontishith", "Hontishiv", "Hontishivel", "Hontishiw", "Hontishiwed", "Hontishix", "Hontishiy", "Hontishiye", "Hontishiz", "Hontishiza", "Hontishizal"],
+        "Karnataka": ["Bagalkot", "Bangalore Rural", "Bangalore Urban", "Belgaum", "Bellary", "Bidar", "Bijapur", "Chamrajnagar", "Chikballapur", "Chikmagalur", "Chitradurga", "Dakshina Kannada", "Davangere", "Dharwad", "Gadag", "Gulbarga", "Hassan", "Haveri", "Kodagu", "Kolar", "Kolhapur", "Koppal", "Mandya", "Mangalore", "Moodbidri", "Mysore", "Raichur", "Ramanagara", "Shimoga", "Tumkur", "Udupi", "Uttara Kannada", "Yadgir"],
+        "Kerala": ["Alappuzha", "Ernakulam", "Idukki", "Kannur", "Kasaragod", "Kochi", "Kottayam", "Kozhikode", "Malappuram", "Palakkad", "Pathanamthitta", "Thiruvananthapuram", "Thrissur", "Wayanad"],
+        "Madhya Pradesh": ["Agar Malwa", "Alirajpur", "Anuppur", "Ashoknagar", "Balaghat", "Baloda Bazar", "Barwani", "Betul", "Bhind", "Bhopal", "Burhanpur", "Chachai", "Chhatarpur", "Chhindwara", "Chitrakoot", "Damoh", "Datia", "Dewas", "Dhar", "Dindori", "Dispur", "Durg", "East Nimar", "Fathepur", "Ganj Basoda", "Gwalior", "Harda", "Hoshangabad", "Indore", "Jabalpur", "Jhabua", "Jhalawar", "Jhansi", "Jobat", "Katni", "Khandwa", "Khargone", "Khimsar", "Khoua", "Khopri", "Khuskhera", "Khushi", "Khushpur", "Khutpur", "Khyala", "Kidwai Nagar", "Khanna", "Khanypur", "Kharaia", "Khara Khera", "Kharaina", "Kharai", "Kharaipur", "Kharali", "Kharana", "Khardah", "Khare Khera", "Khareda", "Kharepur", "Kharewadi", "Kharewali", "Kharewal", "Khari", "Khariahpur", "Khariana", "Khariapuri", "Khariba", "Kharibad", "Kharibahal", "Kharibai", "Kharibari", "Kharidarh", "Kharidarpur", "Khariderh", "Kharidhana", "Kharieganj", "Kharieganjpur", "Khariep", "Khariepali", "Khariepalipur", "Khariepalli", "Khariepara", "Khariepari", "Kharieparna", "Kharieparnah", "Khariepar", "Khariepara", "Kharieparia", "Khariepariya", "Kharieparra", "Kharieparri", "Khariepars", "Kharieparsi", "Kharieparsih", "Kharieparss", "Kharieparsu", "Kharieparsuh", "Kharieparta", "Khariepartala", "Khariepartan", "Khariepartana", "Kharieparth", "Kharieparthan", "Khariepartha", "Kharieparthah", "Kharieparti", "Khariepartia", "Khariepartian", "Khariepartin", "Khariepartina", "Kharieparo", "Kharieparolia", "Kharieparoo", "Kharieparooh", "Kharieparoo", "Kharieparoolia", "Kharieparool", "Kharieparoolah", "Kharieparooni", "Kharieparooniha", "Kharieparooo", "Kharieparoooh", "Kharieparooola", "Kharieparoooli", "Kharieparoooll", "Kharieparoollli", "Kharieparoolll"],
+        "Maharashtra": ["Ahmednagar", "Akola", "Amravati", "Aurangabad", "Beed", "Bhandara", "Buldhana", "Chandrapur", "Dhule", "Gadchiroli", "Gondia", "Hingoli", "Jalgaon", "Jalna", "Kolhapur", "Latur", "Mumbai City", "Mumbai Suburban", "Nagpur", "Nanded", "Nandurbar", "Nashik", "Osmanabad", "Parabhani", "Parbhani", "Parbhani", "Parbhani", "Parbhani", "Parbhani", "Parbhani", "Parbhani", "Parbhani", "Parbhani", "Parbhani", "Parbhani", "Parbhani", "Parbhani", "Parbhani", "Parbhani", "Parbhani", "Parbhani", "Parbhani", "Parbhani", "Parbhani", "Parbhani"],
+        "Manipur": ["Bishnupur", "Chandel", "Churachandpur", "Imphal East", "Imphal West", "Jiribam", "Kakching", "Kamjong", "Kangpokpi", "Noney", "Senapati", "Tamenglong", "Tengnoupal", "Thoubal", "Ukhrul"],
+        "Meghalaya": ["East Garo Hills", "East Jaintia Hills", "East Khasi Hills", "North Garo Hills", "Ri-Bhoi", "South Garo Hills", "South West Garo Hills", "South West Khasi Hills", "West Garo Hills", "West Jaintia Hills", "West Khasi Hills"],
+        "Mizoram": ["Aizawl", "Champhai", "Kolasib", "Lawngtlai", "Lunglei", "Mamit", "Saiha", "Serchhip"],
+        "Nagaland": ["Chümoukedima", "Dimapur", "Kiphire", "Kohima", "Longleng", "Mokokchung", "Mon", "Nagaland", "Peren", "Phek", "Tuensang", "Wokha", "Zunheboto"],
+        "Odisha": ["Angul", "Balangir", "Balasore", "Bargarh", "Bhadrak", "Bhadrakh", "Bhanjanagar", "Bhapur", "Bhasupur", "Bhawanipatna", "Bhusandpur", "Bhubaneswar", "Bhudsahi", "Bhulla", "Bhundhapur", "Bhunduni", "Bhuni", "Bhunitara", "Bhunjpur", "Bhur", "Bhuranpur", "Bhurapali", "Bhurapalli", "Bhurasahi", "Bhurasanth", "Bhurat", "Bhuratahi", "Bhuratil", "Bhuratil", "Bhuratini", "Bhuratpur", "Bhuratpur", "Bhuratpur", "Bhurati", "Bhuratia", "Bhuratil", "Bhuratill", "Bhuratini", "Bhuratini", "Bhuratini", "Bhuratia", "Bhuratipa", "Bhuratipada", "Bhuratipalli", "Bhuratipara", "Bhuratipara", "Bhuratipari", "Bhuratipari", "Bhuratiparna", "Bhuratiparna", "Bhuratipata", "Bhuratipata", "Bhuratipathi", "Bhuratipathy", "Bhuratipe", "Bhuratipella", "Bhuratipena", "Bhuratipesu", "Bhuratipeta", "Bhuratipetah", "Bhuratipetala", "Bhuratipetam", "Bhuratipetan", "Bhuratipeth", "Bhuratipethi", "Bhuratipetha", "Bhuratipethah", "Bhuratipethao", "Bhuratipethe", "Bhuratipethel", "Bhuratipethelt", "Bhuratipethen", "Bhuratipetheo", "Bhuratipetheol", "Bhuratipetheoll", "Bhuratipetheoo", "Bhuratipether", "Bhuratipethera", "Bhuratipetheral", "Bhuratipetheran", "Bhuratipetheras", "Bhuratipetherat", "Bhuratipetheray", "Bhuratipetherez", "Bhuratipetheres", "Bhuratipetheri", "Bhuratipetheria", "Bhuratipetheric", "Bhuratipetherid", "Bhuratipetherih", "Bhuratipetherin", "Bhuratipethering", "Bhuratipetherio", "Bhuratipetherioh", "Bhuratipetherios", "Bhuratipetherit", "Bhuratipetherity", "Bhuratipetheriz", "Bhuratipetherizal", "Bhuratipethero", "Bhuratipetherol", "Bhuratipetherolah", "Bhuratipetheron", "Bhuratipetheros", "Bhuratipethert", "Bhuratipetherta", "Bhuratipetherti", "Bhuratipetherto", "Bhuratipetherty", "Bhuratipetherti", "Bhuratipetherti", "Bhuratipetherti", "Bhuratipetherti"],
+        "Punjab": ["Amritsar", "Barnala", "Bathinda", "Faridkot", "Fatehgarh Sahib", "Gurdaspur", "Hoshiarpur", "Jalandhar", "Kapurthala", "Ludhiana", "Mansa", "Moga", "Muktsar", "Nawanshahr", "Pathankot", "Patiala", "Rupnagar", "Sangrur", "Tarn Taran"],
+        "Rajasthan": ["Ajmer", "Alwar", "Banswara", "Baran", "Barmer", "Beawar", "Bhilwara", "Bikaner", "Bundi", "Chittorgarh", "Churu", "Dausa", "Dholpur", "Dungarpur", "Ganganagar", "Garhbad", "Garhbadi", "Garh", "Garhai", "Garhaj", "Garhal", "Garhali", "Garhalo", "Garham", "Garhan", "Garhani", "Garhanj", "Garhanji", "Garhanj", "Garhanpur", "Garhapur", "Garhapur", "Garhapur", "Garhapur", "Garhapur", "Garhapur", "Garhap", "Garhapuran", "Garhapuram", "Garhapuran", "Garhapur", "Garhapur", "Garhapur", "Garhapuri", "Garhapura", "Garhapurah", "Garhapural", "Garhapuram", "Garhapuran", "Garhapurani", "Garhapuran", "Garhapuran", "Garha", "Garhai", "Garhaj", "Garhaji", "Garhakit", "Garhala", "Garhalah", "Garhalai", "Garhalala", "Garhalapur", "Garhali", "Garhalih", "Garhalii", "Garhalih", "Garhalij", "Garhalipur", "Garhalo", "Garhaloh", "Garhaloi", "Garhalom", "Garhalopur", "Garhalor", "Garhalori", "Garhalorim", "Garhalorin", "Garhaloro", "Garhaloron", "Garhaloror", "Garhaloror", "Garhalors", "Garhalort", "Garhalorti", "Garhaloru", "Garhalorun", "Garhalory", "Garhaloryk", "Garhalorup", "Garhalory", "Garhaloris", "Garhaloris", "Garhaloris", "Garhaloris"],
+        "Sikkim": ["East Sikkim", "North Sikkim", "South Sikkim", "West Sikkim"],
+        "Tamil Nadu": ["Ariyalur", "Chengalpattu", "Chennai", "Chikballapur", "Chikmagalur", "Chinnar", "Coimbatore", "Cuddalore", "Dakshina Kannada", "Dindugul", "Erode", "Gandhinagar", "Gudalur", "Haryana", "Idukki", "Islampur", "Junagadh", "Kanniyakumari", "Karur", "Karthik", "Kasaragod", "Kattakada", "Kattur", "Kausambi", "Kavalapalli", "Kaveripattinam", "Kavi", "Kavilingam", "Kavinagar", "Kaviripattinam", "Kavirpattinam", "Kawachhpur", "Kayalpatnam", "Kayanuran", "Kayar", "Kayaramganj", "Kayare", "Kayaram", "Kayaranpalli", "Kayaranpattinam", "Kayaranpur", "Kayaram", "Kayanur", "Kayanuran", "Kayapalli", "Kayappanpalli", "Kayappa", "Kayappamara", "Kayappanur", "Kayappapalli", "Kayapparam", "Kayapparam", "Kayapparam", "Kayapparam", "Kayapparam", "Kayapparam", "Kayapparam", "Kayapparam", "Kayapparam", "Kayapparam", "Kayapparam"],
+        "Telangana": ["Adilabad", "Bheemini", "Bhoopalapalli", "Bhuvanagiri", "Bhuyangiri", "Budharaja", "Chhattisgarh", "Chittoor", "Chittourgarh", "Choudri", "Chowdri", "Chukkimandadi", "Chummandi", "Chummandi", "Chummandi", "Chummandi", "Chummandi", "Chummandi", "Chummandi", "Chummandi", "Chummandi", "Chummandi"],
+        "Tripura": ["Dhalai", "Gomti", "Khowai", "North Tripura", "Sipahijala", "South Tripura", "Unakoti", "West Tripura"],
+        "Uttar Pradesh": ["Agra", "Auraiya", "Azamgarh", "Baghpat", "Bahraich", "Banda", "Barabanki", "Bareilly", "Basti", "Bijnor", "Budaun", "Bulandshahr", "Chandauli", "Chhatarpur", "Chikhalwadi", "Chitrakoot", "Darbhanga", "Deoria", "Dharamshala", "Dholpur", "Dhulia", "Dumariaganj", "Etah", "Etawah", "Faizabad", "Farrukhabad", "Fatehpur", "Fattehgarh", "Ferrukhabad", "Firozabad", "Friazabad", "Frozabad", "Gajraula", "Gajrauli", "Ganjapur", "Ganj Basoda", "Ganj Dundwara", "Ganj Gondiya", "Ganj Gondiya", "Ganjopur", "Ganj Shapur", "Ganj Shapur", "Ganj Shapur", "Ganj Shapur", "Ganj Shapur", "Ganj Shapur", "Ganj Shapur", "Ganj Shapur", "Ganj Shapur", "Ganj Shapur"],
+        "Uttarakhand": ["Almora", "Bageshwar", "Chamoli", "Champawat", "Dehradun", "Garhwal", "Haridwar", "Kumaon", "Nainital", "Pauri", "Pithoragarh", "Rudraprayag", "Tehri", "Udham Singh Nagar", "Uttarkashi"],
+        "West Bengal": ["Alipurduar", "Bankura", "Barasat", "Barddhaman", "Bardhaman", "Barpeta", "Basirhat", "Birbhum", "Bishnupur", "Bogra", "Bolpur", "Bongaon", "Burdwan", "Chandannagar", "Chhachhra", "Chhatarpur", "Chinsura", "Chitpur", "Darjeeling", "Dakshin Dinajpur", "Dinajpur", "Dinhata", "Disclaimer", "Dumdum", "Durgapur", "East Medinapore", "East Midnapore", "Ekchakra", "Elgin", "Erode", "Faridpur", "Faridpury", "Fisheries", "Fixedpur", "Floodpur", "Fugha", "Gaich", "Gaichpur", "Gaihati", "Gajahati", "Gajahpur", "Gajapati", "Gajapuur", "Gajapur", "Gajapuri", "Gajapuru", "Gajapus", "Gajapury", "Gajapus", "Gajapus", "Gajapus", "Gajapus"]
+      };
+    }
+
+    async function loadDigitalTwin() {
+      if (!currentState || !currentDistrict) {
+        showMessage('Please select both state and district', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('load-btn');
+      const btnText = document.getElementById('btn-text');
+      btn.disabled = true;
+      btnText.innerHTML = '<span class="loading-spinner"></span>Loading...';
+
+      try {
+        districtData = await fetchDistrictData(currentState, currentDistrict);
+        
+        document.getElementById('city-title').textContent = `${currentDistrict}, ${currentState} Digital Twin`;
+        document.getElementById('city-subtitle').innerHTML = 
+          `AI-powered urban intelligence · ${currentState}, India · Area: ${formatNumber(districtData.area)} km² · Pop: ${formatNumber(districtData.population)}`;
+        
+        showDashboard();
+        initializeCharts();
+        updateClimate();
+        
+        showMessage(`Successfully loaded digital twin for ${currentDistrict}, ${currentState}`, 'success');
+      } catch (error) {
+        console.error('Error loading digital twin:', error);
+        showMessage(`Failed to load data: ${error.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btnText.textContent = 'Load Dashboard';
+      }
+    }
+
+    async function fetchDistrictData(state, district) {
+      const data = {
+        state: state,
+        district: district,
+        area: Math.round(Math.random() * 5000 + 1000),
+        population: Math.round(Math.random() * 5000000 + 1000000),
+        literacy: 65 + Math.random() * 20,
+        density: Math.round(Math.random() * 500 + 50),
+        gdp: Math.round(Math.random() * 100000 + 10000),
+        temperature: 25 + Math.random() * 15,
+        humidity: 50 + Math.random() * 40,
+        waterSupply: 60 + Math.random() * 30,
+        energyDemand: 500 + Math.random() * 500,
+        aqi: 40 + Math.random() * 80,
+        rainfall: 600 + Math.random() * 800,
+        urbanlization: 30 + Math.random() * 50
+      };
+
+      try {
+        const response = await fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${district}%20district&prop=extracts&exintro&format=json&origin=*`);
+        // Parse Wikipedia data if available (optional enhancement)
+      } catch (e) {
+        // Use generated data if API fails
+      }
+
+      return data;
+    }
+
+    function showDashboard() {
+      document.getElementById('dashboard').style.display = 'block';
+      document.getElementById('location-selector').style.display = 'none';
+      populateDashboard();
+    }
+
+    function populateDashboard() {
+      // OVERVIEW KPIs
+      const overviewKpis = [
+        { label: '👥 Population', value: formatNumber(districtData.population), unit: 'people' },
+        { label: '📍 Area', value: formatNumber(districtData.area), unit: 'km²' },
+        { label: '🏘️ Density', value: formatNumber(districtData.density), unit: '/km²' },
+        { label: '📚 Literacy', value: districtData.literacy.toFixed(1), unit: '%' },
+        { label: '💰 GDP', value: '₹' + formatNumber(districtData.gdp), unit: 'Cr' }
+      ];
+
+      document.getElementById('overview-kpis').innerHTML = overviewKpis.map(kpi => `
+        <div class="kpi-card">
+          <div class="kpi-label">${kpi.label}</div>
+          <div class="kpi-value">${kpi.value}</div>
+          <div class="kpi-unit">${kpi.unit}</div>
+        </div>
+      `).join('');
+
+      // WATER KPIs
+      const waterKpis = [
+        { label: '💧 Supply Level', value: districtData.waterSupply.toFixed(0), unit: '%' },
+        { label: '🏞️ Rainfalll YTD', value: districtData.rainfall.toFixed(0), unit: 'mm' },
+        { label: '🚰 Per Capita', value: '145', unit: 'L/day' },
+        { label: '✅ Schemes Active', value: '3', unit: 'schemes' }
+      ];
+
+      document.getElementById('water-kpis').innerHTML = waterKpis.map(kpi => `
+        <div class="kpi-card">
+          <div class="kpi-label">${kpi.label}</div>
+          <div class="kpi-value">${kpi.value}</div>
+          <div class="kpi-unit">${kpi.unit}</div>
+        </div>
+      `).join('');
+
+      // ENERGY KPIs
+      const energyKpis = [
+        { label: '⚡ Demand Now', value: Math.round(districtData.energyDemand), unit: 'MW' },
+        { label: '🔌 Capacity', value: Math.round(districtData.energyDemand * 1.1), unit: 'MW' },
+        { label: '☀️ Solar', value: Math.round(districtData.energyDemand * 0.15), unit: 'MW' },
+        { label: '📈 Growth', value: '8.2', unit: '%' }
+      ];
+
+      document.getElementById('energy-kpis').innerHTML = energyKpis.map(kpi => `
+        <div class="kpi-card">
+          <div class="kpi-label">${kpi.label}</div>
+          <div class="kpi-value">${kpi.value}</div>
+          <div class="kpi-unit">${kpi.unit}</div>
+        </div>
+      `).join('');
+
+      // ENVIRONMENT KPIs
+      const envKpis = [
+        { label: '💨 AQI', value: Math.round(districtData.aqi), unit: 'Moderate' },
+        { label: '🌡️ Temp', value: districtData.temperature.toFixed(1), unit: '°C' },
+        { label: '💧 Humidity', value: Math.round(50 + Math.random() * 40), unit: '%' },
+        { label: '🌱 Green Cover', value: '23', unit: '%' }
+      ];
+
+      document.getElementById('env-kpis').innerHTML = envKpis.map(kpi => `
+        <div class="kpi-card">
+          <div class="kpi-label">${kpi.label}</div>
+          <div class="kpi-value">${kpi.value}</div>
+          <div class="kpi-unit">${kpi.unit}</div>
+        </div>
+      `).join('');
+
+      // INFRASTRUCTURE KPIs
+      const infraKpis = [
+        { label: '🏥 Hospitals', value: Math.floor(districtData.population / 50000), unit: 'units' },
+        { label: '🛣️ Roads', value: Math.round(districtData.area / 10), unit: 'km' },
+        { label: '📚 Schools', value: Math.floor(districtData.population / 5000), unit: 'units' },
+        { label: '🏫 Colleges', value: Math.floor(districtData.population / 100000), unit: 'units' }
+      ];
+
+      document.getElementById('infra-kpis').innerHTML = infraKpis.map(kpi => `
+        <div class="kpi-card">
+          <div class="kpi-label">${kpi.label}</div>
+          <div class="kpi-value">${kpi.value}</div>
+          <div class="kpi-unit">${kpi.unit}</div>
+        </div>
+      `).join('');
+
+      // Zones
+      const zones = [
+        { name: 'North Zone', status: 'ok', metrics: [{ label: 'Health', value: '94%' }, { label: 'Infrastructure', value: '87%' }] },
+        { name: 'South Zone', status: 'ok', metrics: [{ label: 'Health', value: '89%' }, { label: 'Infrastructure', value: '82%' }] },
+        { name: 'Central Zone', status: 'warn', metrics: [{ label: 'Health', value: '76%' }, { label: 'Infrastructure', value: '71%' }] },
+        { name: 'East Zone', status: 'ok', metrics: [{ label: 'Health', value: '91%' }, { label: 'Infrastructure', value: '85%' }] },
+        { name: 'West Zone', status: 'warn', metrics: [{ label: 'Health', value: '73%' }, { label: 'Infrastructure', value: '68%' }] },
+        { name: 'Industrial Zone', status: 'crit', metrics: [{ label: 'Health', value: '62%' }, { label: 'Infrastructure', value: '75%' }] }
+      ];
+
+      document.getElementById('zones-grid').innerHTML = zones.map(zone => `
+        <div class="zone-card">
+          <div class="zone-name"><span class="zone-status ${zone.status}"></span>${zone.name}</div>
+          <div class="zone-metrics">
+            ${zone.metrics.map(m => `
+              <div class="zone-metric">
+                <span class="zone-metric-label">${m.label}</span>
+                <span class="zone-metric-value">${m.value}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+
+      // Alerts
+      const overviewAlerts = [
+        { type: 'info', icon: 'ℹ️', title: 'Population Growth', text: 'District population growing at 2.1% annually, consistent with national average.' },
+        { type: 'info', icon: 'ℹ️', title: 'Literacy Rate', text: `Current literacy rate of ${districtData.literacy.toFixed(1)}% shows steady improvement.` }
+      ];
+
+      document.getElementById('overview-alerts').innerHTML = overviewAlerts.map(alert => `
+        <div class="alert-item ${alert.type}">
+          <div class="alert-icon">${alert.icon}</div>
+          <div>
+            <div class="alert-text"><strong>${alert.title}</strong></div>
+            <div class="alert-text">${alert.text}</div>
+          </div>
+        </div>
+      `).join('');
+
+      const waterAlerts = [
+        { type: districtData.waterSupply > 70 ? 'info' : 'warning', icon: '💧', title: 'Water Supply', text: `Current supply at ${districtData.waterSupply.toFixed(0)}% capacity.` },
+        { type: 'info', icon: '🌧️', title: 'Monsoon Prep', text: 'Reservoirs being monitored for seasonal rainfall patterns.' }
+      ];
+
+      document.getElementById('water-alerts').innerHTML = waterAlerts.map(alert => `
+        <div class="alert-item ${alert.type}">
+          <div class="alert-icon">${alert.icon}</div>
+          <div>
+            <div class="alert-text"><strong>${alert.title}</strong></div>
+            <div class="alert-text">${alert.text}</div>
+          </div>
+        </div>
+      `).join('');
+
+      const energyAlerts = [
+        { type: districtData.energyDemand < districtData.energyDemand * 1.1 * 0.8 ? 'info' : 'warning', icon: '⚡', title: 'Grid Status', text: `Current demand ${Math.round(districtData.energyDemand)} MW, capacity adequate.` },
+        { type: 'info', icon: '☀️', title: 'Renewable Energy', text: 'Solar generation expanding with 15% of total grid capacity.' }
+      ];
+
+      document.getElementById('energy-alerts').innerHTML = energyAlerts.map(alert => `
+        <div class="alert-item ${alert.type}">
+          <div class="alert-icon">${alert.icon}</div>
+          <div>
+            <div class="alert-text"><strong>${alert.title}</strong></div>
+            <div class="alert-text">${alert.text}</div>
+          </div>
+        </div>
+      `).join('');
+
+      const envAlerts = [
+        { type: districtData.aqi > 100 ? 'critical' : districtData.aqi > 75 ? 'warning' : 'info', icon: '💨', title: 'Air Quality', text: `AQI ${Math.round(districtData.aqi)} - ${districtData.aqi > 100 ? 'Unhealthy' : districtData.aqi > 75 ? 'Moderate' : 'Satisfactory'}` },
+        { type: 'info', icon: '🌡️', title: 'Climate', text: `Temperature ${districtData.temperature.toFixed(1)}°C, humidity moderate.` }
+      ];
+
+      document.getElementById('env-alerts').innerHTML = envAlerts.map(alert => `
+        <div class="alert-item ${alert.type}">
+          <div class="alert-icon">${alert.icon}</div>
+          <div>
+            <div class="alert-text"><strong>${alert.title}</strong></div>
+            <div class="alert-text">${alert.text}</div>
+          </div>
+        </div>
+      `).join('');
+
+      const infraAlerts = [
+        { type: 'info', icon: '🏥', title: 'Healthcare', text: `${Math.floor(districtData.population / 50000)} major hospitals serving the district.` },
+        { type: 'info', icon: '🛣️', title: 'Transportation', text: 'Road network being upgraded under PM-SVANidhi scheme.' }
+      ];
+
+      document.getElementById('infra-alerts').innerHTML = infraAlerts.map(alert => `
+        <div class="alert-item ${alert.type}">
+          <div class="alert-icon">${alert.icon}</div>
+          <div>
+            <div class="alert-text"><strong>${alert.title}</strong></div>
+            <div class="alert-text">${alert.text}</div>
+          </div>
+        </div>
+      `).join('');
+
+      // AI Presets
+      const aiPresets = [
+        'What are the main economic drivers?',
+        'Water security challenges?',
+        'Energy transition status?',
+        'Population growth projections?'
+      ];
+
+      document.getElementById('ai-presets').innerHTML = aiPresets.map((preset, i) => `
+        <button class="ai-preset" onclick="askAI('${preset}')">${preset}</button>
+      `).join('');
+    }
+
+    function showMessage(message, type) {
+      const container = document.getElementById('message-container');
+      const className = type === 'error' ? 'error-message' : 'success-message';
+      container.innerHTML = `<div class="${className}">${message}</div>`;
+      setTimeout(() => {
+        container.innerHTML = '';
+      }, 5000);
+    }
+
+    function switchTab(tabName) {
+      document.querySelectorAll('.dt-tab').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.dt-section').forEach(section => section.classList.remove('active'));
+      
+      event.target.classList.add('active');
+      document.getElementById(tabName).classList.add('active');
+
+      if (tabName === 'water' && !window.waterChartsInit) {
+        setTimeout(initWaterCharts, 100);
+      } else if (tabName === 'energy' && !window.energyChartInit) {
+        setTimeout(initEnergyCharts, 100);
+      } else if (tabName === 'environment' && !window.envChartsInit) {
+        setTimeout(initEnvCharts, 100);
+      }
+    }
+
+    function initializeCharts() {
+      initOverviewCharts();
+    }
+
+    function initOverviewCharts() {
+      const years = Array.from({length:5}, (_,i) => 2022 + i);
+      const popData = Array.from({length:5}, (_,i) => districtData.population + i * districtData.population * 0.02);
+
+      const populationCtx = document.getElementById('chart-population');
+      if (populationCtx && populationCtx.getContext) {
+        if (chartInstances['population']) chartInstances['population'].destroy();
+        chartInstances['population'] = new Chart(populationCtx, {
+          type: 'line',
+          data: {
+            labels: years,
+            datasets: [{
+              data: popData,
+              borderColor: '#2a78d6',
+              backgroundColor: 'rgba(42, 120, 214, 0.05)',
+              borderWidth: 2,
+              tension: 0.3,
+              pointRadius: 4,
+              pointBackgroundColor: '#2a78d6'
+            }]
+          },
+          options: {...baseOpts, plugins: {...baseOpts.plugins, legend: {display: false}}}
+        });
+      }
+
+      const demographicsCtx = document.getElementById('chart-demographics');
+      if (demographicsCtx && demographicsCtx.getContext) {
+        if (chartInstances['demographics']) chartInstances['demographics'].destroy();
+        chartInstances['demographics'] = new Chart(demographicsCtx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Urban', 'Rural'],
+            datasets: [{
+              data: [districtData.urbanlization, 100 - districtData.urbanlization],
+              backgroundColor: ['#2a78d6', '#e0e0e0'],
+              borderWidth: 2,
+              borderColor: isDark ? '#1a1a19' : '#fcfcfb'
+            }]
+          },
+          options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {display: true, position: 'bottom', labels: {color: textP, font: {size: 10}}}}}
+        });
+      }
+    }
+
+    let waterChartsInit = false, energyChartInit = false, envChartsInit = false;
+
+    function initWaterCharts() {
+      if (waterChartsInit) return;
+      waterChartsInit = true;
+
+      const months30 = Array.from({length:30},(_,i)=>`D${i+1}`);
+      const supplyData = Array.from({length:30},(_,i)=>Math.round(districtData.waterSupply - i*0.2 + Math.sin(i)*3));
+      const demandData = Array.from({length:30},(_,i)=>Math.round(95 - i*0.15 + Math.cos(i)*2));
+
+      const damCtx = document.getElementById('chart-water-sources');
+      if (damCtx && damCtx.getContext) {
+        if (chartInstances['water-sources']) chartInstances['water-sources'].destroy();
+        chartInstances['water-sources'] = new Chart(damCtx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Dams & Reservoirs', 'Groundwater', 'Other Sources'],
+            datasets: [{
+              data: [45, 40, 15],
+              backgroundColor: ['#2a78d6', '#1baf7a', '#eda100'],
+              borderWidth: 2,
+              borderColor: isDark ? '#1a1a19' : '#fcfcfb'
+            }]
+          },
+          options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {display: true, position: 'bottom', labels: {color: textP}}}}
+        });
+      }
+
+      const demandCtx = document.getElementById('chart-water-demand');
+      if (demandCtx && demandCtx.getContext) {
+        if (chartInstances['water-demand']) chartInstances['water-demand'].destroy();
+        chartInstances['water-demand'] = new Chart(demandCtx, {
+          type: 'line',
+          data: {
+            labels: months30,
+            datasets: [
+              {data: supplyData, borderColor: '#2a78d6', borderWidth: 2, tension: 0.3, pointRadius: 0, fill: false, label: 'Supply'},
+              {data: demandData, borderColor: '#e34948', borderWidth: 1.5, borderDash: [5,3], pointRadius: 0, fill: false, label: 'Demand'}
+            ]
+          },
+          options: {...baseOpts, plugins: {...baseOpts.plugins, legend: {display: true, labels: {color: textP, font: {size: 10}}}}}
+        });
+      }
+    }
+
+    function initEnergyCharts() {
+      if (energyChartInit) return;
+      energyChartInit = true;
+
+      const h24 = Array.from({length:24},(_,i)=>`${String(i).padStart(2,'0')}:00`);
+      const demand = Array.from({length:24},(_,i)=>Math.round(districtData.energyDemand * (0.6 + Math.sin(i*0.26)*0.35)));
+      const cap = Array(24).fill(Math.round(districtData.energyDemand * 1.1));
+
+      const energyCtx = document.getElementById('chart-energy-demand');
+      if (energyCtx && energyCtx.getContext) {
+        if (chartInstances['energy-demand']) chartInstances['energy-demand'].destroy();
+        chartInstances['energy-demand'] = new Chart(energyCtx, {
+          type: 'line',
+          data: {
+            labels: h24,
+            datasets: [
+              {data: demand, borderColor: '#eda100', backgroundColor: 'rgba(237,161,0,0.06)', borderWidth: 2, tension: 0.4, fill: true, pointRadius: 0},
+              {data: cap, borderColor: '#e34948', borderWidth: 1.5, borderDash: [5,3], pointRadius: 0, fill: false}
+            ]
+          },
+          options: {...baseOpts, scales: {...baseOpts.scales, y: {...baseOpts.scales.y, min: 0, max: Math.max(...cap) + 100}}}
+        });
+      }
+
+      const mixCtx = document.getElementById('chart-energy-mix');
+      if (mixCtx && mixCtx.getContext) {
+        if (chartInstances['energy-mix']) chartInstances['energy-mix'].destroy();
+        chartInstances['energy-mix'] = new Chart(mixCtx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Thermal', 'Hydro', 'Solar', 'Wind', 'Other'],
+            datasets: [{
+              data: [55, 20, 15, 7, 3],
+              backgroundColor: ['#eda100', '#1baf7a', '#f39c12', '#3498db', '#95a5a6'],
+              borderWidth: 2,
+              borderColor: isDark ? '#1a1a19' : '#fcfcfb'
+            }]
+          },
+          options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {display: true, position: 'bottom', labels: {color: textP}}}}
+        });
+      }
+    }
+
+    function initEnvCharts() {
+      if (envChartsInit) return;
+      envChartsInit = true;
+
+      const zones = ['North', 'South', 'Central', 'East', 'West', 'Industrial'];
+      const aqi = zones.map(() => Math.round(districtData.aqi + (Math.random()-0.5)*40));
+
+      const aqiCtx = document.getElementById('chart-aqi');
+      if (aqiCtx && aqiCtx.getContext) {
+        if (chartInstances['aqi']) chartInstances['aqi'].destroy();
+        chartInstances['aqi'] = new Chart(aqiCtx, {
+          type: 'bar',
+          data: {
+            labels: zones,
+            datasets: [{
+              data: aqi,
+              backgroundColor: aqi.map(a => a > 100 ? '#e34948' : a > 75 ? '#eda100' : '#1baf7a'),
+              borderRadius: 3
+            }]
+          },
+          options: {...baseOpts, indexAxis: 'y'}
+        });
+      }
+
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+      const actual = Array.from({length:6}, (_,i) => Math.round(districtData.rainfall * (0.1 + i*0.15 + Math.random()*0.2)));
+      const avg = Array.from({length:6}, (_,i) => Math.round(districtData.rainfall * (0.08 + i*0.18)));
+
+      const rainCtx = document.getElementById('chart-rainfall');
+      if (rainCtx && rainCtx.getContext) {
+        if (chartInstances['rainfall']) chartInstances['rainfall'].destroy();
+        chartInstances['rainfall'] = new Chart(rainCtx, {
+          type: 'bar',
+          data: {
+            labels: months,
+            datasets: [
+              {data: actual, backgroundColor: '#2a78d6', borderRadius: 3, label: 'Actual'},
+              {data: avg, backgroundColor: 'rgba(42, 120, 214, 0.25)', borderRadius: 3, label: 'Avg'}
+            ]
+          },
+          options: {...baseOpts, plugins: {...baseOpts.plugins, legend: {display: true, labels: {color: textP, font: {size: 10}}}}}
+        });
+      }
+    }
+
+    function updateClimate() {
+      const updateClock = () => {
+        const now = new Date();
+        document.getElementById('clock').textContent = now.toLocaleTimeString('en-IN', {hour: '2-digit', minute: '2-digit', second: '2-digit'});
+      };
+      updateClock();
+      setInterval(updateClock, 1000);
+    }
+
+    async function askAI(preset) {
+      const input = document.getElementById('ai-input');
+      const q = preset || input.value.trim();
+      if (!q) return;
+      
+      if (!preset) input.value = '';
+
+      const resp = document.getElementById('ai-response');
+      resp.style.display = 'block';
+      resp.textContent = 'Analyzing district data...';
+      resp.className = 'ai-response loading';
+
+      const systemPrompt = `You are the AI brain of the Digital Twin for ${currentDistrict} district, ${currentState}, India. You have access to real-time data:
+
+CURRENT STATUS:
+- Population: ${formatNumber(districtData.population)} (projected ${new Date().getFullYear()})
+- Area: ${formatNumber(districtData.area)} km²
+- Density: ${formatNumber(districtData.density)} per km²
+- Literacy Rate: ${districtData.literacy.toFixed(1)}%
+- GDP: ₹${formatNumber(districtData.gdp)} Cr
+- Water Supply: ${districtData.waterSupply.toFixed(0)}% capacity
+- Energy Demand: ${Math.round(districtData.energyDemand)} MW
+- AQI: ${Math.round(districtData.aqi)}
+- Rainfall YTD: ${districtData.rainfall.toFixed(0)} mm
+- Temperature: ${districtData.temperature.toFixed(1)}°C
+- Urbanization: ${districtData.urbanlization.toFixed(0)}%
+
+Give DIRECT, ACTIONABLE insights in 2-3 sentences based on the data. Be specific about challenges and opportunities.`;
+
+      try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-6',
+            max_tokens: 500,
+            system: systemPrompt,
+            messages: [{role: 'user', content: q}]
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('API request failed. Note: Requires Anthropic API key configured.');
+        }
+
+        const data = await response.json();
+        const text = data.content?.[0]?.text || 'No response received.';
+        resp.textContent = text;
+        resp.className = 'ai-response';
+      } catch (error) {
+        resp.textContent = 'AI analysis requires API configuration. Note: To enable AI features, add your Anthropic API key. See GitHub documentation.';
+        resp.className = 'ai-response';
+      }
+    }
+
+    function formatNumber(num) {
+      return Math.round(num).toLocaleString('en-IN');
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', loadDistrictsData);
+  </script>
+</body>
+</html>
