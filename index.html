@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tamil Nadu Digital Twin</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<style>
+  :root{
+    --tn-maroon:#8a1538; --tn-maroon-bg:#f8e9ee;
+    --tn-green:#0b6b3a; --tn-green-bg:#e6f3ec;
+    --tn-gold:#c99a2e; --tn-gold-bg:#faf1de;
+    --tn-red:#b3261e; --tn-red-bg:#fbe9e8;
+    --text-primary:#1a1a1a; --text-secondary:#666; --text-muted:#999;
+    --surface-1:#f5f5f5; --surface-2:#ffffff; --border:#e0e0e0; --border-strong:#ccc;
+    --radius:10px; --font-sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --text-primary:#eae6e2; --text-secondary:#b3aca6; --text-muted:#8a827c;
+      --surface-1:#232020; --surface-2:#1a1717; --border:#3a3432; --border-strong:#4a4340; }
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font-sans);background:linear-gradient(160deg,#fdf8f2 0%,#f3e8dd 100%);min-height:100vh;color:var(--text-primary);padding:20px;}
+  @media (prefers-color-scheme: dark){ body{ background:linear-gradient(160deg,#171414 0%,#1f1a19 100%); } }
+  .container{max-width:1200px;margin:0 auto;}
+  .dt-header{padding:1.25rem 1.5rem;border-bottom:3px solid var(--tn-maroon);margin-bottom:1.5rem;background:var(--surface-2);border-radius:var(--radius) var(--radius) 0 0;box-shadow:0 2px 10px rgba(0,0,0,.06);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+  .dt-title{font-size:22px;font-weight:600;color:var(--tn-maroon);}
+  .dt-subtitle{font-size:12.5px;color:var(--text-muted);margin-top:2px;}
+  .dt-clock{font-size:13px;color:var(--text-secondary);text-align:right;}
+  .live-badge{display:inline-flex;align-items:center;gap:5px;background:var(--tn-green-bg);color:var(--tn-green);font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;margin-top:4px;}
+  .live-dot{width:6px;height:6px;border-radius:50%;background:var(--tn-green);animation:pulse 1.5s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  .selector-card{background:var(--surface-2);border-radius:var(--radius);padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 2px 10px rgba(0,0,0,.06);}
+  .selector-grid{display:grid;grid-template-columns:2fr 1fr;gap:1rem;align-items:end;}
+  .form-group{display:flex;flex-direction:column;}
+  .form-group label{font-size:12px;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-secondary);}
+  select,input,textarea{padding:10px 12px;border:1px solid var(--border-strong);border-radius:8px;font-size:14px;background:var(--surface-1);color:var(--text-primary);font-family:var(--font-sans);}
+  select:focus,input:focus,textarea:focus{outline:none;border-color:var(--tn-maroon);}
+  .btn{padding:10px 22px;background:var(--tn-maroon);color:#fff;border:none;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;transition:.15s;}
+  .btn:hover{background:#6e0f2b;}
+  .btn:disabled{background:var(--border-strong);cursor:not-allowed;}
+  .btn.secondary{background:var(--tn-green);}
+  .btn.secondary:hover{background:#08542d;}
+
+  .msg{padding:10px 14px;border-radius:8px;margin-bottom:1rem;font-size:13.5px;}
+  .msg.error{background:var(--tn-red-bg);color:var(--tn-red);border:1px solid #f0c6c3;}
+  .msg.info{background:var(--tn-gold-bg);color:#7a5c14;border:1px solid #ecd8a4;}
+
+  .tabs{display:flex;gap:4px;margin-bottom:1.25rem;border-bottom:1px solid var(--border);overflow-x:auto;}
+  .tab{padding:10px 16px;font-size:13.5px;font-weight:500;color:var(--text-secondary);border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;}
+  .tab.active{color:var(--tn-maroon);border-bottom-color:var(--tn-maroon);}
+  .panel{display:none;background:var(--surface-2);border-radius:var(--radius);padding:1.5rem;box-shadow:0 2px 10px rgba(0,0,0,.06);min-height:200px;}
+  .panel.active{display:block;}
+
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:1.5rem;}
+  .kpi{background:var(--surface-1);border-radius:8px;padding:14px;border:1px solid var(--border);}
+  .kpi .label{font-size:11.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;}
+  .kpi .value{font-size:20px;font-weight:700;}
+  .kpi .unit{font-size:12px;color:var(--text-secondary);font-weight:400;}
+  .kpi .note{font-size:10.5px;color:var(--tn-gold);margin-top:3px;}
+
+  .chart-box{position:relative;height:260px;margin-bottom:1rem;}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;}
+  @media (max-width:800px){.two-col{grid-template-columns:1fr;} .selector-grid{grid-template-columns:1fr;}}
+
+  .link-card{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px;background:var(--surface-1);}
+  .link-card a{color:var(--tn-maroon);font-weight:600;text-decoration:none;font-size:14px;}
+  .link-card a:hover{text-decoration:underline;}
+  .link-card .desc{font-size:12.5px;color:var(--text-secondary);margin-top:2px;}
+
+  .section-heading{font-size:14px;font-weight:700;color:var(--text-primary);margin:1.25rem 0 .6rem;}
+  .section-heading:first-child{margin-top:0;}
+
+  .ai-key-row{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;}
+  .ai-key-row input{flex:1;min-width:220px;}
+  .ai-presets{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1rem;}
+  .ai-preset{font-size:12.5px;padding:6px 12px;border:1px solid var(--border-strong);border-radius:20px;background:var(--surface-1);cursor:pointer;color:var(--text-secondary);}
+  .ai-preset:hover{border-color:var(--tn-maroon);color:var(--tn-maroon);}
+  .ai-response{margin-top:1rem;padding:14px;border-radius:8px;background:var(--tn-green-bg);color:#0b3d20;font-size:14px;line-height:1.55;white-space:pre-wrap;display:none;}
+  @media (prefers-color-scheme: dark){ .ai-response{background:#16281e;color:#bfe8cf;} }
+  .ai-response.loading{color:var(--text-muted);background:var(--surface-1);}
+
+  .footer-note{font-size:11.5px;color:var(--text-muted);text-align:center;margin-top:1.5rem;line-height:1.6;}
+  .footer-note a{color:var(--tn-maroon);}
+
+  .about-card{background:var(--surface-2);border-radius:var(--radius);padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 2px 10px rgba(0,0,0,.06);}
+  .about-card h2{font-size:17px;margin-bottom:.5rem;color:var(--tn-maroon);}
+  .about-card p{font-size:13.5px;color:var(--text-secondary);line-height:1.65;margin-bottom:.9rem;}
+  .about-toggle{font-size:12.5px;color:var(--tn-maroon);cursor:pointer;font-weight:600;background:none;border:none;padding:0;margin-bottom:.5rem;}
+  .sdg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:.75rem;}
+  .sdg-chip{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:8px;background:var(--surface-1);border:1px solid var(--border);}
+  .sdg-num{flex-shrink:0;width:34px;height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;}
+  .sdg-text .sdg-name{font-size:12.5px;font-weight:700;margin-bottom:2px;}
+  .sdg-text .sdg-desc{font-size:11.5px;color:var(--text-muted);line-height:1.4;}
+  .sdg-honesty{font-size:11.5px;color:var(--text-muted);margin-top:.9rem;font-style:italic;}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="dt-header">
+    <div>
+      <div class="dt-title">🪷 Tamil Nadu Digital Twin</div>
+      <div class="dt-subtitle">An Atal Tinkering Lab project · AI-assisted decision-making for the Sustainable Development Goals</div>
+      <div class="live-badge"><span class="live-dot"></span> Live where available</div>
+    </div>
+    <div class="dt-clock">
+      <div id="clock">--:--:--</div>
+      <div id="today"></div>
+    </div>
+  </div>
+
+  <div class="about-card">
+    <h2>💡 The problem we're solving</h2>
+    <p>
+      Tamil Nadu's government publishes an enormous amount of real data — census figures, weather records, air quality readings, water and energy dashboards — but it's scattered across dozens of separate websites. A district collector, a student, or an ordinary citizen has no single place to see the full picture of a district and get a clear, plain-language answer to "what should we prioritize here?"
+    </p>
+    <p>
+      <strong>Our solution:</strong> a "digital twin" — one live dashboard per district that pulls together real government and open data (never simulated numbers), and uses the Claude AI model as a decision-support layer that reads that real data and explains what it means in plain language, so anyone can ask it a question and get a grounded, data-backed answer.
+    </p>
+    <button class="about-toggle" onclick="toggleSDG()">📌 See how this maps to the UN Sustainable Development Goals ▾</button>
+    <div id="sdg-panel" style="display:none;">
+      <div class="sdg-grid">
+        <div class="sdg-chip"><div class="sdg-num" style="background:#4C9F38;">3</div><div class="sdg-text"><div class="sdg-name">Good Health &amp; Well-being</div><div class="sdg-desc">Live air quality data lets people see respiratory health risk in real time.</div></div></div>
+        <div class="sdg-chip"><div class="sdg-num" style="background:#C5192D;">4</div><div class="sdg-text"><div class="sdg-name">Quality Education</div><div class="sdg-desc">District literacy rates are surfaced and compared, highlighting where education investment matters most.</div></div></div>
+        <div class="sdg-chip"><div class="sdg-num" style="background:#26BDE2;">6</div><div class="sdg-text"><div class="sdg-name">Clean Water &amp; Sanitation</div><div class="sdg-desc">Direct links to real reservoir &amp; water-supply dashboards for every district.</div></div></div>
+        <div class="sdg-chip"><div class="sdg-num" style="background:#FCC30B;">7</div><div class="sdg-text"><div class="sdg-name">Affordable &amp; Clean Energy</div><div class="sdg-desc">Direct links to real grid demand &amp; generation dashboards (TANGEDCO/POSOCO).</div></div></div>
+        <div class="sdg-chip"><div class="sdg-num" style="background:#FD6925;">9</div><div class="sdg-text"><div class="sdg-name">Industry, Innovation &amp; Infrastructure</div><div class="sdg-desc">The digital twin itself is an open-data decision-support tool built from scratch.</div></div></div>
+        <div class="sdg-chip"><div class="sdg-num" style="background:#FD9D24;">11</div><div class="sdg-text"><div class="sdg-name">Sustainable Cities &amp; Communities</div><div class="sdg-desc">Population density &amp; growth data help planners see where urban pressure is building.</div></div></div>
+        <div class="sdg-chip"><div class="sdg-num" style="background:#3F7E44;">13</div><div class="sdg-text"><div class="sdg-name">Climate Action</div><div class="sdg-desc">Live local weather data builds everyday climate awareness at the district level.</div></div></div>
+        <div class="sdg-chip"><div class="sdg-num" style="background:#19486A;">17</div><div class="sdg-text"><div class="sdg-name">Partnerships for the Goals</div><div class="sdg-desc">Brings together data from multiple government bodies into one shared public tool.</div></div></div>
+      </div>
+      <div class="sdg-honesty">We chose to map only the goals our real data genuinely supports, rather than claim all 17 — we felt an honest, evidence-backed mapping made a stronger project than a padded one.</div>
+    </div>
+  </div>
+
+  <div class="selector-card">
+    <div class="selector-grid">
+      <div class="form-group">
+        <label for="district-select">Select District</label>
+        <select id="district-select"><option value="">Loading districts…</option></select>
+      </div>
+      <div class="form-group">
+        <button class="btn" id="load-btn" onclick="loadDistrict()" disabled>Load Dashboard</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="message-container"></div>
+
+  <div class="tabs" id="tabs" style="display:none;">
+    <button class="tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
+    <button class="tab" data-tab="environment" onclick="switchTab('environment')">Live Weather &amp; Air Quality</button>
+    <button class="tab" data-tab="resources" onclick="switchTab('resources')">Water &amp; Energy Resources</button>
+    <button class="tab" data-tab="ai" onclick="switchTab('ai')">AI Insights</button>
+  </div>
+
+  <div class="panel active" id="overview">
+    <p style="color:var(--text-muted);font-size:13.5px;">Select a district above and click <strong>Load Dashboard</strong> to see its data.</p>
+  </div>
+  <div class="panel" id="environment"></div>
+  <div class="panel" id="resources"></div>
+  <div class="panel" id="ai"></div>
+
+  <div class="footer-note">
+    Census figures: Government of Tamil Nadu district data &amp; Census 2011 (literacy). Weather: OpenWeatherMap. Air quality: WAQI (CPCB ground stations).
+    No simulated or randomly generated figures are shown anywhere in this dashboard — where live official data isn't publicly available, we link directly to the official source instead.
+  </div>
+</div>
+
+<script>
+  const OPENWEATHER_KEY = '5f8e03fcbe1faf6be53e8c4919a4b114';
+  const WAQI_TOKEN = 'f9c25b4623acefad3f0ea356eb6a5a434c3eeaa1';
+  let anthropicKey = '';
+  let districts = [];
+  let current = null;
+  let popChart = null;
+
+  async function init(){
+    updateClock();
+    setInterval(updateClock, 1000);
+    try{
+      const res = await fetch('district.json');
+      const data = await res.json();
+      districts = data.districts.sort((a,b)=>a.name.localeCompare(b.name));
+      const sel = document.getElementById('district-select');
+      sel.innerHTML = '<option value="">— Choose a district —</option>' +
+        districts.map(d=>`<option value="${d.code}">${d.name}</option>`).join('');
+      sel.addEventListener('change', e=>{
+        document.getElementById('load-btn').disabled = !e.target.value;
+      });
+    }catch(err){
+      showMessage('Could not load district.json. Make sure it is in the same folder as this page.', 'error');
+    }
+  }
+
+  function toggleSDG(){
+    const p = document.getElementById('sdg-panel');
+    p.style.display = p.style.display === 'none' ? 'block' : 'none';
+  }
+
+  function updateClock(){
+    const now = new Date();
+    document.getElementById('clock').textContent = now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    document.getElementById('today').textContent = now.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+  }
+
+  function showMessage(text, type){
+    const c = document.getElementById('message-container');
+    c.innerHTML = `<div class="msg ${type}">${text}</div>`;
+    if(type!=='error') setTimeout(()=>{ if(c.firstChild && c.firstChild.textContent===text) c.innerHTML=''; }, 6000);
+  }
+
+  async function loadDistrict(){
+    const code = document.getElementById('district-select').value;
+    current = districts.find(d=>d.code===code);
+    if(!current) return;
+    document.getElementById('tabs').style.display = 'flex';
+    document.getElementById('message-container').innerHTML = '';
+    renderOverview();
+    renderResources();
+    renderAI();
+    renderEnvironmentLoading();
+    fetchLiveEnvironment();
+  }
+
+  function renderOverview(){
+    const d = current;
+    const density = Math.round(d.population / d.area_km2);
+    const avgLiteracy = (districts.reduce((s,x)=>s+x.literacy_pct,0)/districts.length).toFixed(1);
+    const estYear = d.established.slice(0,4);
+    document.getElementById('overview').innerHTML = `
+      <h2 style="margin-bottom:1rem;">${d.name} District</h2>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="label">Headquarters</div><div class="value" style="font-size:16px;">${d.headquarters}</div></div>
+        <div class="kpi"><div class="label">Population</div><div class="value">${d.population.toLocaleString('en-IN')}</div></div>
+        <div class="kpi"><div class="label">Area</div><div class="value">${d.area_km2.toLocaleString('en-IN')}<span class="unit"> km²</span></div></div>
+        <div class="kpi"><div class="label">Density</div><div class="value">${density.toLocaleString('en-IN')}<span class="unit"> /km²</span></div></div>
+        <div class="kpi"><div class="label">Literacy Rate</div><div class="value">${d.literacy_pct}<span class="unit">%</span></div>
+          ${d.literacy_is_parent_estimate ? `<div class="note">2011 figure inherited from undivided ${d.parent_district} district</div>` : `<div class="note">Census 2011</div>`}</div>
+        <div class="kpi"><div class="label">District Formed</div><div class="value" style="font-size:16px;">${estYear}</div></div>
+      </div>
+      <div class="two-col">
+        <div>
+          <div class="section-heading">Population vs. Tamil Nadu district average</div>
+          <div class="chart-box"><canvas id="chart-pop-compare"></canvas></div>
+        </div>
+        <div>
+          <div class="section-heading">Literacy vs. Tamil Nadu district average</div>
+          <div class="chart-box"><canvas id="chart-lit-compare"></canvas></div>
+        </div>
+      </div>
+    `;
+    drawCompareCharts();
+  }
+
+  function drawCompareCharts(){
+    const d = current;
+    const avgPop = Math.round(districts.reduce((s,x)=>s+x.population,0)/districts.length);
+    const avgLit = (districts.reduce((s,x)=>s+x.literacy_pct,0)/districts.length);
+    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const textColor = isDark ? '#eae6e2' : '#1a1a1a';
+    const baseOpts = {responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:textColor}},y:{ticks:{color:textColor},beginAtZero:true}}};
+
+    if(popChart) popChart.destroy();
+    popChart = new Chart(document.getElementById('chart-pop-compare'),{
+      type:'bar',
+      data:{labels:[d.name,'TN district avg'],datasets:[{data:[d.population,avgPop],backgroundColor:['#8a1538','#c9a4b0'],borderRadius:4}]},
+      options: baseOpts
+    });
+    new Chart(document.getElementById('chart-lit-compare'),{
+      type:'bar',
+      data:{labels:[d.name,'TN district avg'],datasets:[{data:[d.literacy_pct, Number(avgLit.toFixed(1))],backgroundColor:['#0b6b3a','#a7c9b6'],borderRadius:4}]},
+      options: baseOpts
+    });
+  }
+
+  function renderEnvironmentLoading(){
+    document.getElementById('environment').innerHTML = `<p style="color:var(--text-muted);">Fetching live weather and air quality for ${current.headquarters}…</p>`;
+  }
+
+  async function fetchLiveEnvironment(){
+    const d = current;
+    let weather=null, weatherErr=null, aqi=null, aqiErr=null;
+    try{
+      const r = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${d.lat}&lon=${d.lon}&appid=${OPENWEATHER_KEY}&units=metric`);
+      if(!r.ok) throw new Error(r.status===401 ? 'Invalid OpenWeatherMap API key' : `OpenWeatherMap error (${r.status})`);
+      weather = await r.json();
+    }catch(e){ weatherErr = e.message; }
+
+    try{
+      const r = await fetch(`https://api.waqi.info/feed/geo:${d.lat};${d.lon}/?token=${WAQI_TOKEN}`);
+      const j = await r.json();
+      if(j.status!=='ok') throw new Error(j.data || 'No AQI station found near this district');
+      aqi = j.data;
+    }catch(e){ aqiErr = e.message; }
+
+    let html = `<h2 style="margin-bottom:1rem;">Live conditions — ${d.headquarters}</h2>`;
+
+    html += `<div class="section-heading">Weather (OpenWeatherMap, live)</div>`;
+    if(weather){
+      html += `<div class="kpi-grid">
+        <div class="kpi"><div class="label">Temperature</div><div class="value">${Math.round(weather.main.temp)}<span class="unit">°C</span></div></div>
+        <div class="kpi"><div class="label">Feels Like</div><div class="value">${Math.round(weather.main.feels_like)}<span class="unit">°C</span></div></div>
+        <div class="kpi"><div class="label">Humidity</div><div class="value">${weather.main.humidity}<span class="unit">%</span></div></div>
+        <div class="kpi"><div class="label">Condition</div><div class="value" style="font-size:16px;">${weather.weather[0].main}</div></div>
+        <div class="kpi"><div class="label">Wind Speed</div><div class="value">${weather.wind.speed}<span class="unit"> m/s</span></div></div>
+        <div class="kpi"><div class="label">Cloud Cover</div><div class="value">${weather.clouds.all}<span class="unit">%</span></div></div>
+      </div>`;
+    } else {
+      html += `<div class="msg error">Live weather unavailable: ${weatherErr}</div>`;
+    }
+
+    html += `<div class="section-heading">Air Quality (WAQI / CPCB ground stations, live)</div>`;
+    if(aqi){
+      const cat = aqiCategory(aqi.aqi);
+      html += `<div class="kpi-grid">
+        <div class="kpi"><div class="label">AQI</div><div class="value" style="color:${cat.color};">${aqi.aqi}</div><div class="note">${cat.label}</div></div>
+        ${aqi.iaqi?.pm25 ? `<div class="kpi"><div class="label">PM2.5</div><div class="value">${aqi.iaqi.pm25.v}<span class="unit"> µg/m³</span></div></div>` : ''}
+        ${aqi.iaqi?.pm10 ? `<div class="kpi"><div class="label">PM10</div><div class="value">${aqi.iaqi.pm10.v}<span class="unit"> µg/m³</span></div></div>` : ''}
+        ${aqi.iaqi?.no2 ? `<div class="kpi"><div class="label">NO₂</div><div class="value">${aqi.iaqi.no2.v}<span class="unit"> µg/m³</span></div></div>` : ''}
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:6px;">Station: ${aqi.city?.name || 'nearest available'} · Updated: ${aqi.time?.s || '—'}</p>`;
+    } else {
+      html += `<div class="msg error">Live AQI unavailable: ${aqiErr}. This usually means there is no CPCB monitoring station close enough to ${d.headquarters} in the WAQI network. <a href="https://airquality.cpcb.gov.in/AQI_India/" target="_blank">Check CPCB's national AQI portal directly →</a></div>`;
+    }
+
+    document.getElementById('environment').innerHTML = html;
+  }
+
+  function aqiCategory(aqi){
+    if(aqi<=50) return {label:'Good', color:'#0b6b3a'};
+    if(aqi<=100) return {label:'Satisfactory', color:'#8a9c1e'};
+    if(aqi<=200) return {label:'Moderate', color:'#c99a2e'};
+    if(aqi<=300) return {label:'Poor', color:'#c9601e'};
+    if(aqi<=400) return {label:'Very Poor', color:'#b3261e'};
+    return {label:'Severe', color:'#6e0f0f'};
+  }
+
+  function renderResources(){
+    const d = current;
+    document.getElementById('resources').innerHTML = `
+      <h2 style="margin-bottom:.5rem;">Water &amp; Energy — official sources</h2>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:1.25rem;">
+        There is no public, real-time API for district-level reservoir levels or electricity demand in Tamil Nadu that a browser can call directly.
+        Rather than show made-up numbers, here are direct links to the live official dashboards for ${d.name}.
+      </p>
+      <div class="section-heading">Water Resources</div>
+      <div class="link-card"><div><a href="https://twadboard.tn.gov.in/" target="_blank">TWAD Board — Tamil Nadu Water Supply &amp; Drainage</a><div class="desc">Rural &amp; urban water supply schemes, district-wise</div></div><i class="fa-solid fa-arrow-up-right-from-square"></i></div>
+      <div class="link-card"><div><a href="https://indiawris.gov.in/wris/#/reservoir" target="_blank">India-WRIS Reservoir Storage Dashboard</a><div class="desc">Live reservoir/dam storage levels (Central Water Commission)</div></div><i class="fa-solid fa-arrow-up-right-from-square"></i></div>
+      <div class="link-card"><div><a href="https://mausam.imd.gov.in/" target="_blank">IMD — India Meteorological Department</a><div class="desc">Official rainfall data &amp; forecasts</div></div><i class="fa-solid fa-arrow-up-right-from-square"></i></div>
+      ${d.name==='Chennai' ? `<div class="link-card"><div><a href="https://chennaimetrowater.tn.gov.in/" target="_blank">Chennai Metrowater</a><div class="desc">Chennai-specific water supply status</div></div><i class="fa-solid fa-arrow-up-right-from-square"></i></div>` : ''}
+
+      <div class="section-heading">Energy</div>
+      <div class="link-card"><div><a href="https://www.tangedco.gov.in/" target="_blank">TANGEDCO — Tamil Nadu Generation &amp; Distribution Corp.</a><div class="desc">Power generation, demand &amp; outage information</div></div><i class="fa-solid fa-arrow-up-right-from-square"></i></div>
+      <div class="link-card"><div><a href="https://posoco.in/" target="_blank">POSOCO / Grid-India</a><div class="desc">Real-time regional grid demand data</div></div><i class="fa-solid fa-arrow-up-right-from-square"></i></div>
+
+      <div class="section-heading">District Administration</div>
+      <div class="link-card"><div><a href="https://www.tn.gov.in/district_view" target="_blank">Government of Tamil Nadu — District Directory</a><div class="desc">Find ${d.name}'s official district portal (collectorate, schemes, contacts)</div></div><i class="fa-solid fa-arrow-up-right-from-square"></i></div>
+    `;
+  }
+
+  function renderAI(){
+    const d = current;
+    document.getElementById('ai').innerHTML = `
+      <h2 style="margin-bottom:.5rem;">AI Insights — ${d.name}</h2>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:1rem;">
+        Powered by the Claude API. Your API key is used only in this browser tab for this session — it is never saved to a file or sent anywhere except Anthropic's API.
+      </p>
+      <div class="ai-key-row">
+        <input type="password" id="anthropic-key-input" placeholder="Paste your Anthropic API key (sk-ant-...)" value="${anthropicKey}">
+        <button class="btn secondary" onclick="saveKey()">Use this key</button>
+      </div>
+      <div class="ai-presets">
+        <button class="ai-preset" onclick="askAI('What are the biggest development priorities for this district right now?')">Development priorities</button>
+        <button class="ai-preset" onclick="askAI('What should residents know about current weather and air quality conditions here?')">Weather &amp; air quality briefing</button>
+        <button class="ai-preset" onclick="askAI('How does this district compare to the Tamil Nadu average on literacy and population density, and what does that suggest?')">Compare to TN average</button>
+      </div>
+      <textarea id="ai-input" rows="2" placeholder="Ask anything about ${d.name} district..." style="width:100%;margin-bottom:10px;"></textarea>
+      <button class="btn" onclick="askAI()">Ask</button>
+      <div class="ai-response" id="ai-response"></div>
+    `;
+  }
+
+  function saveKey(){
+    anthropicKey = document.getElementById('anthropic-key-input').value.trim();
+    showMessage(anthropicKey ? 'API key set for this session.' : 'Key cleared.', 'info');
+  }
+
+  async function askAI(preset){
+    const d = current;
+    const inputEl = document.getElementById('ai-input');
+    const q = preset || inputEl.value.trim();
+    if(!q) return;
+    if(!preset) inputEl.value = '';
+    if(!anthropicKey){
+      anthropicKey = document.getElementById('anthropic-key-input').value.trim();
+    }
+    const resp = document.getElementById('ai-response');
+    resp.style.display = 'block';
+    resp.className = 'ai-response loading';
+    resp.textContent = 'Thinking…';
+
+    if(!anthropicKey){
+      resp.className = 'ai-response';
+      resp.textContent = 'Please paste your Anthropic API key above and click "Use this key" first.';
+      return;
+    }
+
+    const density = Math.round(d.population / d.area_km2);
+    const systemPrompt = `You are the AI analysis engine for a Tamil Nadu district digital twin dashboard. You are looking at real government data for ${d.name} district, Tamil Nadu, India.
+
+REAL DATA (do not invent additional statistics beyond this):
+- Headquarters: ${d.headquarters}
+- Population: ${d.population.toLocaleString('en-IN')}
+- Area: ${d.area_km2} km²
+- Density: ${density} people/km²
+- Literacy rate: ${d.literacy_pct}% (Census 2011${d.literacy_is_parent_estimate ? ', inherited from undivided '+d.parent_district+' district' : ''})
+- District formed/established: ${d.established}
+
+Answer the user's question in 3-5 direct, well-reasoned sentences using this data as context. If asked about something you have no data for (e.g. exact live reservoir levels), say clearly that you don't have that live figure rather than guessing.`;
+
+    try{
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST',
+        headers:{
+          'content-type':'application/json',
+          'x-api-key': anthropicKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-5',
+          max_tokens: 500,
+          system: systemPrompt,
+          messages: [{role:'user', content:q}]
+        })
+      });
+      const data = await r.json();
+      if(!r.ok){
+        throw new Error(data?.error?.message || `API error (${r.status})`);
+      }
+      resp.className = 'ai-response';
+      resp.textContent = data.content?.[0]?.text || 'No response received.';
+    }catch(err){
+      resp.className = 'ai-response';
+      resp.textContent = 'AI request failed: ' + err.message;
+    }
+  }
+
+  function switchTab(name){
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    document.querySelector(`.tab[data-tab="${name}"]`).classList.add('active');
+    document.getElementById(name).classList.add('active');
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
